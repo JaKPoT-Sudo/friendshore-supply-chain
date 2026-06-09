@@ -4,6 +4,8 @@ AI-powered supply chain risk analyzer for defense contractors — identifies Chi
 
 Built for the defense acquisition and national security market (Leidos, SAIC, Booz Allen Hamilton, primes and sub-contractors).
 
+**Live demo:** https://friendshore-supply-chain.onrender.com
+
 ---
 
 ## What It Does
