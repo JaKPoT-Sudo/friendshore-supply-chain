@@ -36,9 +36,9 @@ def startup():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _ctx(request: Request, extra: dict | None = None) -> dict:
-    base = {"request": request, "app_title": APP_TITLE,
-            "demo_mode": DEMO_MODE, "demo_banner": DEMO_BANNER}
+def _ctx(extra: dict | None = None) -> dict:
+    """Base template context — request is passed separately to TemplateResponse."""
+    base = {"app_title": APP_TITLE, "demo_mode": DEMO_MODE, "demo_banner": DEMO_BANNER}
     if extra:
         base.update(extra)
     return base
@@ -173,7 +173,7 @@ def _run_full_analysis(
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", _ctx(request))
+    return templates.TemplateResponse(request, "index.html", _ctx())
 
 
 @app.post("/analyze")
@@ -197,8 +197,8 @@ async def analyze(
 
     if not source_text:
         return templates.TemplateResponse(
-            "index.html",
-            _ctx(request, {"error": "Please paste BOM text or upload a file."}),
+            request, "index.html",
+            _ctx({"error": "Please paste BOM text or upload a file."}),
             status_code=400,
         )
 
@@ -206,8 +206,8 @@ async def analyze(
         record = _run_full_analysis(source_text, db, analysis_name or None)
     except AgentError as exc:
         return templates.TemplateResponse(
-            "index.html",
-            _ctx(request, {"error": f"Analysis failed: {exc}"}),
+            request, "index.html",
+            _ctx({"error": f"Analysis failed: {exc}"}),
             status_code=500,
         )
 
@@ -227,11 +227,8 @@ def view_analysis(request: Request, analysis_id: int, db: Session = Depends(get_
     )
 
     return templates.TemplateResponse(
-        "analysis.html",
-        _ctx(request, {
-            "record": record,
-            "graph_url": graph_url,
-        }),
+        request, "analysis.html",
+        _ctx({"record": record, "graph_url": graph_url}),
     )
 
 
@@ -240,7 +237,7 @@ def history(request: Request, db: Session = Depends(get_db)):
     records = db.query(SupplyChainAnalysis).order_by(
         SupplyChainAnalysis.created_at.desc()
     ).all()
-    return templates.TemplateResponse("history.html", _ctx(request, {"records": records}))
+    return templates.TemplateResponse(request, "history.html", _ctx({"records": records}))
 
 
 @app.post("/seed")
