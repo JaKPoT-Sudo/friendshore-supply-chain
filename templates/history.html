@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Analysis History — FriendShore{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Analysis History</h1>
+  <p class="subtitle">All past supply chain analyses, most recent first.</p>
+</div>
+
+<div style="margin-bottom:1rem">
+  <a href="/" class="btn btn-primary">&#128196; New Analysis</a>
+  {% if not records %}
+  <form method="post" action="/seed" style="display:inline">
+    <button type="submit" class="btn btn-secondary">Load Demo Data</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if records %}
+<div class="history-grid">
+  {% for r in records %}
+  <a href="/analysis/{{ r.id }}" class="history-card">
+    <div class="history-card-top">
+      <span class="history-name">{{ r.name }}</span>
+      <span class="badge badge-{{ 'danger' if r.overall_risk_score >= 60 else ('warning' if r.overall_risk_score >= 30 else 'ok') }}">
+        {{ r.overall_risk_score }}/100
+      </span>
+    </div>
+    <div class="history-meta">
+      {{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '' }} &bull;
+      {{ r.nodes | length }} suppliers &bull;
+      {% set spf_count = r.single_points_of_failure | length %}
+      {% if spf_count > 0 %}
+      <span style="color:#c0392b">&#9888; {{ spf_count }} SPF</span>
+      {% else %}
+      <span style="color:#27ae60">No SPF</span>
+      {% endif %}
+    </div>
+    {% if r.bottom_line %}
+    <div class="history-summary">{{ r.bottom_line[:140] }}{% if r.bottom_line|length > 140 %}…{% endif %}</div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No analyses yet.</p>
+  <p>Upload a BOM or load the demo data to get started.</p>
+</div>
+{% endif %}
+{% endblock %}

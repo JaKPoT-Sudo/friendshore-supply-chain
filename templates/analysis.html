@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ record.name }} — FriendShore{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="/history" class="back-link">&larr; All Analyses</a>
+  <h1>{{ record.name }}</h1>
+  <p class="subtitle">Analyzed {{ record.created_at.strftime('%B %d, %Y at %H:%M UTC') if record.created_at else '' }}</p>
+</div>
+
+<!-- Risk score banner -->
+<div class="risk-banner risk-{{ 'high' if record.overall_risk_score >= 60 else ('medium' if record.overall_risk_score >= 30 else 'low') }}">
+  <div class="risk-score-big">{{ record.overall_risk_score }}<span>/100</span></div>
+  <div>
+    <strong>Overall Risk Score</strong><br>
+    {{ record.bottom_line }}
+  </div>
+</div>
+
+<!-- Graph -->
+{% if graph_url %}
+<div class="card">
+  <h2>&#127758; Supply Chain Dependency Graph</h2>
+  <p class="graph-legend-note">
+    <span class="dot dot-blue"></span> Your company &nbsp;
+    <span class="dot dot-red"></span> High risk &nbsp;
+    <span class="dot dot-orange"></span> Medium risk &nbsp;
+    <span class="dot dot-green"></span> Friendly nation &nbsp;
+    <span class="dot dot-grey"></span> Unknown
+  </p>
+  <img src="{{ graph_url }}" alt="Supply chain graph" class="graph-img">
+</div>
+{% endif %}
+
+<!-- Risk summary -->
+<div class="card">
+  <h2>&#128202; Risk Summary</h2>
+  <p>{{ record.risk_summary }}</p>
+</div>
+
+<!-- SPF -->
+{% if record.single_points_of_failure %}
+<div class="card card-danger">
+  <h2>&#9888;&#65039; Single Points of Failure</h2>
+  <p>Removing these suppliers would disconnect part of your supply chain. Requires immediate dual-sourcing.</p>
+  <ul class="spf-list">
+    {% for spf in record.single_points_of_failure %}
+    <li>{{ spf }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Supplier nodes table -->
+{% if record.nodes %}
+<div class="card">
+  <h2>&#127970; All Suppliers</h2>
+  <div class="table-wrap">
+    <table class="supplier-table">
+      <thead>
+        <tr>
+          <th>Supplier</th>
+          <th>Country</th>
+          <th>Tier</th>
+          <th>Component</th>
+          <th>Risk Score</th>
+          <th>Risk Level</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for node in record.nodes | sort(attribute='tier') %}
+        <tr class="row-risk-{{ node.risk_level | lower }}">
+          <td>
+            {% if node.is_focal_company %}<strong>{% endif %}
+            {{ node.name }}
+            {% if node.is_focal_company %} &#9733;{% endif %}
+            {% if node.is_focal_company %}</strong>{% endif %}
+          </td>
+          <td>
+            {% if node.is_high_risk_country %}
+            <span class="badge badge-danger">&#9888; {{ node.country }}</span>
+            {% else %}
+            {{ node.country or '—' }}
+            {% endif %}
+          </td>
+          <td>Tier {{ node.tier }}</td>
+          <td>{{ node.component or '—' }}</td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar risk-bar-{{ node.risk_level | lower }}" style="width:{{ node.risk_score }}%"></div>
+              <span>{{ node.risk_score }}</span>
+            </div>
+          </td>
+          <td><span class="badge badge-{{ node.risk_level | lower }}">{{ node.risk_level }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Alternative suggestions -->
+{% if record.alternative_suggestions %}
+<div class="card">
+  <h2>&#128994; Friendshore Alternatives</h2>
+  <p>AI-recommended allied-nation suppliers to replace high-risk sources.</p>
+
+  {% for item in record.alternative_suggestions %}
+  <div class="alt-block">
+    <div class="alt-header">
+      <span class="badge badge-danger">&#9888; {{ item.original_supplier }}</span>
+      &rarr; <em>{{ item.component }}</em>
+    </div>
+    <div class="alt-cards">
+      {% for alt in item.alternatives %}
+      <div class="alt-card">
+        <div class="alt-company">{{ alt.company }}</div>
+        <div class="alt-country">&#127758; {{ alt.country }}</div>
+        <div class="alt-rationale">{{ alt.rationale }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div style="text-align:center;margin-top:2rem">
+  <a href="/" class="btn btn-primary">&#128196; Analyze Another BOM</a>
+  <a href="/history" class="btn btn-outline">View All Analyses</a>
+</div>
+{% endblock %}

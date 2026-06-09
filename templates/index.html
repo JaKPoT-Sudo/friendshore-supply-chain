@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}FriendShore — Upload BOM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Supply Chain De-Risking Engine</h1>
+  <p class="subtitle">Paste or upload a Bill of Materials to identify high-risk suppliers,
+     single points of failure, and friendshore alternatives.</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<div class="card-grid">
+  <!-- Upload card -->
+  <div class="card main-card">
+    <h2>&#128196; Analyze Your Supply Chain</h2>
+    <form method="post" action="/analyze" enctype="multipart/form-data" id="analyzeForm">
+      <div class="form-group">
+        <label for="analysis_name">Analysis Name (optional)</label>
+        <input type="text" id="analysis_name" name="analysis_name"
+               placeholder="e.g. AESA Radar Program BOM — Q3 2026">
+      </div>
+
+      <div class="form-group">
+        <label for="bom_text">Paste BOM / Supplier List</label>
+        <textarea id="bom_text" name="bom_text" rows="10"
+                  placeholder="Paste your Bill of Materials here. Examples:
+- CSV with columns: supplier, country, tier, component
+- Free-form text describing your supply chain
+- Structured list of vendors and what they supply
+
+FriendShore will use AI to extract the graph structure automatically."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="file">Or Upload a File (.txt, .csv)</label>
+        <input type="file" id="file" name="file" accept=".txt,.csv,.tsv,.md">
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn"
+              onclick="this.textContent='Analyzing… (30–60 sec)'; this.disabled=true; document.getElementById('analyzeForm').submit();">
+        &#128202; Analyze Supply Chain
+      </button>
+    </form>
+  </div>
+
+  <!-- Demo card -->
+  <div class="card demo-card">
+    <h2>&#127775; Try the Demo</h2>
+    <p>Load a pre-built AESA radar supply chain example showing:</p>
+    <ul>
+      <li>&#128308; 3 high-risk Chinese suppliers</li>
+      <li>&#9888;&#65039; 1 single point of failure (GaAs wafers)</li>
+      <li>&#128994; Friendshore alternatives from domestic and allied-nation suppliers</li>
+      <li>&#128200; Interactive risk-scored dependency graph</li>
+    </ul>
+    <form method="post" action="/seed">
+      <button type="submit" class="btn btn-secondary">Load Demo Data</button>
+    </form>
+    <a href="/history" class="btn btn-outline" style="margin-top:0.5rem;display:inline-block;">
+      View Past Analyses
+    </a>
+
+    <div class="info-box" style="margin-top:1.5rem">
+      <strong>What is "friendshoring"?</strong><br>
+      Shifting supply chains away from adversarial nations toward allied and partner countries
+      (the "friend shore") — a key US national security policy since 2022.
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<div class="card how-it-works">
+  <h2>How It Works</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div><strong>Upload BOM</strong><br>Paste a supplier list or upload a file in any format</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div><strong>AI Parsing</strong><br>Claude extracts nodes, edges, countries, and tiers automatically</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div><strong>Graph Scoring</strong><br>NetworkX identifies articulation points and risk scores each supplier</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div><strong>Friendshore Alternatives</strong><br>Claude recommends allied-nation replacements for high-risk suppliers</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
