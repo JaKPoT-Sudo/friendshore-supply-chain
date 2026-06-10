@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from claude_agent import AgentError, parse_bom, suggest_alternatives
 from config import APP_TITLE, DEMO_BANNER, DEMO_MODE, GRAPH_OUTPUT_DIR
-from database import get_db, init_db
+from database import SessionLocal, get_db, init_db
 from graph_engine import EdgeData, SupplierData, build_and_analyze
 from models import SupplyChainAnalysis, SupplyEdge, SupplierNode
 
@@ -27,9 +27,72 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
+def _load_seed_data(db: Session) -> None:
+    from seed_data import DEMO_ANALYSES
+    for demo in DEMO_ANALYSES:
+        if db.query(SupplyChainAnalysis).filter_by(name=demo["name"]).first():
+            continue
+        record = SupplyChainAnalysis(
+            name=demo["name"],
+            source_text=demo.get("source_text", ""),
+            overall_risk_score=demo.get("overall_risk_score"),
+            risk_summary=demo.get("risk_summary", ""),
+            bottom_line=demo.get("bottom_line", ""),
+            _single_points_of_failure=json.dumps(demo.get("single_points_of_failure", [])),
+            _alternative_suggestions=json.dumps(demo.get("alternative_suggestions", [])),
+        )
+        db.add(record)
+        db.flush()
+        ge_nodes = []
+        for n in demo.get("nodes", []):
+            db_node = SupplierNode(
+                analysis_id=record.id,
+                name=n["name"],
+                country=n.get("country"),
+                tier=n.get("tier", 1),
+                component=n.get("component"),
+                is_focal_company=n.get("is_focal", False),
+                is_high_risk_country=any(
+                    h.lower() in (n.get("country") or "").lower()
+                    for h in ["China", "PRC", "Russia", "Iran", "North Korea", "DPRK", "Belarus"]
+                ),
+            )
+            db.add(db_node)
+            ge_nodes.append(SupplierData(
+                name=n["name"], country=n.get("country"),
+                tier=n.get("tier", 1), component=n.get("component"),
+                is_focal_company=n.get("is_focal", False),
+            ))
+        ge_edges = []
+        for e in demo.get("edges", []):
+            db.add(SupplyEdge(
+                analysis_id=record.id,
+                supplier_name=e["supplier"],
+                customer_name=e["customer"],
+                component=e.get("component"),
+            ))
+            ge_edges.append(EdgeData(supplier=e["supplier"], customer=e["customer"],
+                                     component=e.get("component")))
+        db.flush()
+        focal = demo.get("nodes", [{}])[0].get("name", "Company")
+        try:
+            result = build_and_analyze(ge_nodes, ge_edges, focal, record.id)
+            record.graph_image_path = os.path.join(GRAPH_OUTPUT_DIR, f"graph_{record.id}.png")
+            for db_n in db.query(SupplierNode).filter_by(analysis_id=record.id).all():
+                db_n.risk_score = result.risk_scores.get(db_n.name, 0)
+        except Exception:
+            pass
+    db.commit()
+
+
 @app.on_event("startup")
 def startup():
     init_db()
+    db = SessionLocal()
+    try:
+        _load_seed_data(db)
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -242,79 +305,5 @@ def history(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/seed")
 def seed(db: Session = Depends(get_db)):
-    """Load demo data."""
-    from seed_data import DEMO_ANALYSES
-
-    added = 0
-    for demo in DEMO_ANALYSES:
-        # Check if already seeded
-        existing = db.query(SupplyChainAnalysis).filter_by(name=demo["name"]).first()
-        if existing:
-            continue
-
-        record = SupplyChainAnalysis(
-            name=demo["name"],
-            source_text=demo.get("source_text", ""),
-            overall_risk_score=demo.get("overall_risk_score"),
-            risk_summary=demo.get("risk_summary", ""),
-            bottom_line=demo.get("bottom_line", ""),
-            _single_points_of_failure=json.dumps(demo.get("single_points_of_failure", [])),
-            _alternative_suggestions=json.dumps(demo.get("alternative_suggestions", [])),
-        )
-        db.add(record)
-        db.flush()
-
-        from graph_engine import SupplierData as GENode, EdgeData as GEEdge
-
-        ge_nodes = []
-        for n in demo.get("nodes", []):
-            db_node = SupplierNode(
-                analysis_id=record.id,
-                name=n["name"],
-                country=n.get("country"),
-                tier=n.get("tier", 1),
-                component=n.get("component"),
-                is_focal_company=n.get("is_focal", False),
-                is_high_risk_country=any(
-                    h.lower() in (n.get("country") or "").lower()
-                    for h in ["China", "PRC", "Russia", "Iran", "North Korea", "DPRK", "Belarus"]
-                ),
-            )
-            db.add(db_node)
-            ge_nodes.append(GENode(
-                name=n["name"], country=n.get("country"),
-                tier=n.get("tier", 1), component=n.get("component"),
-                is_focal_company=n.get("is_focal", False),
-            ))
-
-        ge_edges = []
-        for e in demo.get("edges", []):
-            db_edge = SupplyEdge(
-                analysis_id=record.id,
-                supplier_name=e["supplier"],
-                customer_name=e["customer"],
-                component=e.get("component"),
-            )
-            db.add(db_edge)
-            ge_edges.append(GEEdge(supplier=e["supplier"], customer=e["customer"],
-                                   component=e.get("component")))
-
-        db.flush()
-
-        # Render the graph PNG
-        focal = demo.get("nodes", [{}])[0].get("name", "Company")
-        try:
-            result = build_and_analyze(ge_nodes, ge_edges, focal, record.id)
-            record.graph_image_path = os.path.join(GRAPH_OUTPUT_DIR, f"graph_{record.id}.png")
-
-            # Update node risk scores from graph engine
-            db_nodes_for_record = db.query(SupplierNode).filter_by(analysis_id=record.id).all()
-            for db_n in db_nodes_for_record:
-                db_n.risk_score = result.risk_scores.get(db_n.name, 0)
-        except Exception:
-            pass
-
-        added += 1
-
-    db.commit()
+    _load_seed_data(db)
     return RedirectResponse("/history", status_code=303)
