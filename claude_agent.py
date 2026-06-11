@@ -81,7 +81,7 @@ BOM TEXT:
         raw = response.content[0].text
         cleaned = _strip_fences(raw)
         result = json.loads(cleaned)
-    except anthropic.APIError as exc:
+    except Exception as exc:
         raise AgentError(f"Claude API error: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise AgentError(f"Claude returned invalid JSON: {exc}") from exc
@@ -156,7 +156,7 @@ Use real companies where possible. If uncertain, use plausible company names and
         raw = response.content[0].text
         cleaned = _strip_fences(raw)
         result = json.loads(cleaned)
-    except anthropic.APIError as exc:
+    except Exception as exc:
         raise AgentError(f"Claude API error: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise AgentError(f"Claude returned invalid JSON for alternatives: {exc}") from exc
