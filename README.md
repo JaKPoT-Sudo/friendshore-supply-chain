@@ -37,7 +37,7 @@ Built for the defense acquisition and national security market (Leidos, SAIC, Bo
 
 ```bash
 # 1. Clone
-git clone https://github.com/JaKPoT/friendshore-supply-chain.git
+git clone https://github.com/JakPot42/friendshore-supply-chain.git
 cd friendshore-supply-chain
 
 # 2. Add your Anthropic API key
