@@ -239,6 +239,9 @@ def index(request: Request):
     return templates.TemplateResponse(request, "index.html", _ctx())
 
 
+_MAX_BOM_BYTES = 1_000_000   # 1 MB
+_MAX_BOM_CHARS = 200_000
+
 @app.post("/analyze")
 async def analyze(
     request: Request,
@@ -250,7 +253,13 @@ async def analyze(
     # Collect input text
     source_text = ""
     if file and file.filename:
-        contents = await file.read()
+        contents = await file.read(_MAX_BOM_BYTES + 1)
+        if len(contents) > _MAX_BOM_BYTES:
+            return templates.TemplateResponse(
+                request, "index.html",
+                _ctx({"error": f"File too large. Maximum upload size is {_MAX_BOM_BYTES // 1_000_000} MB."}),
+                status_code=422,
+            )
         try:
             source_text = contents.decode("utf-8")
         except UnicodeDecodeError:
@@ -263,6 +272,13 @@ async def analyze(
             request, "index.html",
             _ctx({"error": "Please paste BOM text or upload a file."}),
             status_code=400,
+        )
+
+    if len(source_text) > _MAX_BOM_CHARS:
+        return templates.TemplateResponse(
+            request, "index.html",
+            _ctx({"error": f"BOM too large ({len(source_text):,} chars). Maximum is {_MAX_BOM_CHARS:,} characters."}),
+            status_code=422,
         )
 
     try:

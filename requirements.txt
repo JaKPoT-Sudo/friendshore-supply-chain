@@ -1,7 +1,7 @@
-fastapi>=0.136.0
+﻿fastapi>=0.136.0
 uvicorn[standard]>=0.49.0
 jinja2>=3.1.6
-python-multipart>=0.0.12
+python-multipart>=0.0.31
 sqlalchemy>=2.0.50
 pydantic>=2.13.0
 anthropic>=0.109.0
